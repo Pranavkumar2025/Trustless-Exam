@@ -7,7 +7,6 @@ import crypto from 'crypto';
 //const key =  crypto.randomBytes(32)
 //const iv = crypto.randomBytes(16)
 
-
 /*
 const key =  "<Buffer e7 ae a0 70 17 e2 ac 48 d0 c4 b3 35 7f c7 23 24 84 07 0b cd b3 9a 68 f2 b3 af 5c c1 64 86 cf 37>"
 const iv = "<Buffer f5 bf 1d 0d 47 6d 0f fc 59 67 35 a4 3c 7a 0b d9>"

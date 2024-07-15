@@ -17,6 +17,7 @@ const prisma = new PrismaClient();
 app.use(express.json());
 
 // Function to generate and solve puzzle
+/*
 async function generateAndSolvePuzzle() {
     try {
         const puzzle = await Puzzle.generate({
@@ -33,6 +34,37 @@ async function generateAndSolvePuzzle() {
         throw error; // Propagate the error for handling in the caller
     }
 }
+*/
+
+async function generateAndSolvePuzzle(targetDateTime) {
+    try {
+        // Get the current time and calculate the remaining time until the target date and time
+        const currentTime = new Date();
+        const targetTime = new Date(targetDateTime);
+
+        const remainingTime = targetTime - currentTime;
+
+        if (remainingTime <= 0) {
+            throw new Error('The target date and time must be in the future');
+        }
+
+        const puzzle = await Puzzle.generate({
+            opsPerSecond: 1_300_000,
+            duration: remainingTime, // Set the duration to the remaining time in milliseconds
+            message: 'What is 2 + 2' // Message for the puzzle
+        });
+
+        const solution = await Puzzle.solve(puzzle);
+        console.log('Puzzle solved:', solution);
+        return solution;
+    } catch (error) {
+        console.error('Failed to generate or solve puzzle:', error);
+        throw error; // Propagate the error for handling in the caller
+    }
+}
+
+// Example usage:
+//const targetDateTime = '2024-07-15T15:30:00';
 
 // Endpoint to create an admin (plaintext password storage is not recommended in production)
 app.post('/admin', async (req, res) => {
@@ -116,7 +148,7 @@ app.post('/question', async (req, res) => {
 app.get('/decryptedQuestions', async (req, res) => {
     try {
 
-        //await generateAndSolvePuzzle()
+        await generateAndSolvePuzzle('2024-07-15T11:15:00')
 
         // Fetch all questions from the database
         const questions = await prisma.question.findMany();
