@@ -1,10 +1,8 @@
-
-
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { decrypt, encrypt,key,iv} from './utils/crypto.js';
+import { decrypt, encrypt, key, iv } from './utils/crypto.js';
 import Puzzle from 'crypto-puzzle';
-import dotenv from 'dotenv'
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -12,29 +10,8 @@ const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
 
-
 // Middleware to parse JSON requests
 app.use(express.json());
-
-// Function to generate and solve puzzle
-/*
-async function generateAndSolvePuzzle() {
-    try {
-        const puzzle = await Puzzle.generate({
-            opsPerSecond: 1_300_000,
-            duration: 10000, // Adjust duration to 10 seconds (10000 milliseconds)
-            message: 'What is 2 + 2' // Message for the puzzle
-        });
-
-        const solution = await Puzzle.solve(puzzle);
-        console.log('Puzzle solved:', solution);
-        return solution;
-    } catch (error) {
-        console.error('Failed to generate or solve puzzle:', error);
-        throw error; // Propagate the error for handling in the caller
-    }
-}
-*/
 
 async function generateAndSolvePuzzle(targetDateTime) {
     try {
@@ -42,7 +19,12 @@ async function generateAndSolvePuzzle(targetDateTime) {
         const currentTime = new Date();
         const targetTime = new Date(targetDateTime);
 
+        console.log('Current time:', currentTime);
+        console.log('Target time:', targetTime);
+
         const remainingTime = targetTime - currentTime;
+
+        console.log('Remaining time (ms):', remainingTime);
 
         if (remainingTime <= 0) {
             throw new Error('The target date and time must be in the future');
@@ -63,15 +45,12 @@ async function generateAndSolvePuzzle(targetDateTime) {
     }
 }
 
-// Example usage:
-//const targetDateTime = '2024-07-15T15:30:00';
-
 // Endpoint to create an admin (plaintext password storage is not recommended in production)
 app.post('/admin', async (req, res) => {
     const { username, password } = req.body;
     try {
         const admin = await prisma.admin.create({
-            data: { username, password },          // Store plaintext password (not recommended in production)
+            data: { username, password }, // Store plaintext password (not recommended in production)
         });
         res.json(admin);
     } catch (error) {
@@ -117,12 +96,11 @@ app.post('/question', async (req, res) => {
         }
 
         // Encrypt all options and correct option individually
-        const encryptedQuestion = encrypt(question,key,iv);
-        const encryptedOption1 = encrypt(option1,key,iv);
-        const encryptedOption2 = encrypt(option2,key,iv);
-        const encryptedOption3 = encrypt(option3,key,iv);
-        const encryptedOption4 = encrypt(option4,key,iv);
-        const encryptedCorrectOption = encrypt(correctOption,key,iv);
+        const encryptedQuestion = encrypt(question, key, iv);
+        const encryptedOption1 = encrypt(option1, key, iv);
+        const encryptedOption2 = encrypt(option2, key, iv);
+        const encryptedOption3 = encrypt(option3, key, iv);
+        const encryptedOption4 = encrypt(option4, key, iv);
 
         // Create a new question in the database
         const newQuestion = await prisma.question.create({
@@ -132,12 +110,19 @@ app.post('/question', async (req, res) => {
                 option2: encryptedOption2,
                 option3: encryptedOption3,
                 option4: encryptedOption4,
-                correctOption: encryptedCorrectOption,
                 admin: { connect: { id: adminId } }
             },
         });
 
-        res.json(newQuestion);
+        // Create a new answer in the database
+        const newAnswer = await prisma.answer.create({
+            data: {
+                answer: encrypt(correctOption, key, iv),
+                question: { connect: { id: newQuestion.id } }
+            },
+        });
+
+        res.json({ newQuestion, newAnswer });
     } catch (error) {
         console.error('Failed to create question:', error);
         res.status(500).json({ error: 'Failed to create question' });
@@ -147,11 +132,13 @@ app.post('/question', async (req, res) => {
 // Endpoint to fetch and decrypt questions
 app.get('/decryptedQuestions', async (req, res) => {
     try {
-
-        await generateAndSolvePuzzle('2024-07-15T11:15:00')
+        const targetDateTime = '2024-07-16T17:18:00';
+        await generateAndSolvePuzzle(targetDateTime);
 
         // Fetch all questions from the database
-        const questions = await prisma.question.findMany();
+        const questions = await prisma.question.findMany({
+            include: { answer: true }
+        });
 
         if (questions.length === 0) {
             return res.status(404).json({ error: 'No questions found' });
@@ -159,11 +146,11 @@ app.get('/decryptedQuestions', async (req, res) => {
 
         // Decrypt all questions
         const decryptedQuestions = questions.map(question => ({
-            question: decrypt(question.question,key,iv),
-            option1: decrypt(question.option1,key,iv),
-            option2: decrypt(question.option2,key,iv),
-            option3: decrypt(question.option3,key,iv),
-            option4: decrypt(question.option4,key,iv),
+            question: decrypt(question.question, key, iv),
+            option1: decrypt(question.option1, key, iv),
+            option2: decrypt(question.option2, key, iv),
+            option3: decrypt(question.option3, key, iv),
+            option4: decrypt(question.option4, key, iv),
         }));
 
         res.json(decryptedQuestions);
@@ -177,5 +164,3 @@ app.get('/decryptedQuestions', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
-
-
