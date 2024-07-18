@@ -38,3 +38,9 @@ model Answer {
   questionId String   @map("_questionId") @db.ObjectId
   question   Question @relation(fields: [questionId], references: [id])
 }
+
+model Student { 
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  username   String   @unique
+  password   String
+}
